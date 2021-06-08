@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from functional import *
+from .functional import *
 
 
 """ SDF: Signed Distance Functions

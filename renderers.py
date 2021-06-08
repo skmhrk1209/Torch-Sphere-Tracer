@@ -124,9 +124,9 @@ def compute_normal(
         finite_difference_epsilon_x = surface_positions.new_tensor([finite_difference_epsilon, 0.0, 0.0])
         finite_difference_epsilon_y = surface_positions.new_tensor([0.0, finite_difference_epsilon, 0.0])
         finite_difference_epsilon_z = surface_positions.new_tensor([0.0, 0.0, finite_difference_epsilon])
-        normals_x = signed_distance_function(surface_positions + finite_difference_epsilon_x) - signed_distance_function(positions - finite_difference_epsilon_x)
-        normals_y = signed_distance_function(surface_positions + finite_difference_epsilon_y) - signed_distance_function(positions - finite_difference_epsilon_y)
-        normals_z = signed_distance_function(surface_positions + finite_difference_epsilon_z) - signed_distance_function(positions - finite_difference_epsilon_z)
+        normals_x = signed_distance_function(surface_positions + finite_difference_epsilon_x) - signed_distance_function(surface_positions - finite_difference_epsilon_x)
+        normals_y = signed_distance_function(surface_positions + finite_difference_epsilon_y) - signed_distance_function(surface_positions - finite_difference_epsilon_y)
+        normals_z = signed_distance_function(surface_positions + finite_difference_epsilon_z) - signed_distance_function(surface_positions - finite_difference_epsilon_z)
         normals = torch.cat((normals_x, normals_y, normals_z), dim=-1)
 
     else:
@@ -182,7 +182,6 @@ def phong_shading(
 def cube_mapping(
     surface_normals, 
     view_directions, 
-    light_directions,
     positive_x_images,
     negative_x_images,
     positive_y_images,
@@ -192,7 +191,6 @@ def cube_mapping(
 ):
     surface_normals = nn.functional.normalize(surface_normals, dim=-1)
     view_directions = nn.functional.normalize(view_directions, dim=-1)
-    light_directions = nn.functional.normalize(light_directions, dim=-1)
 
     reflected_directions = 2 * surface_normals * torch.sum(view_directions * surface_normals, dim=-1, keepdim=True) - view_directions
 
@@ -242,5 +240,5 @@ def cube_mapping(
 
     images = nn.functional.grid_sample(images, grids.unsqueeze(-4)).squeeze(-3)
     images = images.permute(0, 2, 3, 1)
-    return images
     
+    return images

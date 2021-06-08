@@ -75,7 +75,7 @@ def abs(x):
 
 
 def sqrt(x):
-    return torch.sqrt(x)
+    return torch.sqrt(x + 1e-6)
 
 
 def sign(x):
