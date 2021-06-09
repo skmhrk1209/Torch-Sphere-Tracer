@@ -43,8 +43,6 @@ class SphereTracing(torch.autograd.Function):
                 converged = torch.abs(signed_distances) < convergence_threshold
                 if torch.all(~foreground_masks | converged):
                     break
-            # NOTE: zero out unconverged points 
-            ray_positions = torch.where(converged, ray_positions, torch.zeros_like(ray_positions))
 
         # save tensors for backward pass
         ctx.save_for_backward(ray_positions, ray_directions, foreground_masks, converged)
@@ -54,7 +52,7 @@ class SphereTracing(torch.autograd.Function):
         return ray_positions, converged
 
     @staticmethod
-    def backward(ctx, grad_outputs, *_):
+    def backward(ctx, grad_outputs, _):
         
         # restore tensors from forward pass
         ray_positions, ray_directions, foreground_masks, converged = ctx.saved_tensors
@@ -114,36 +112,56 @@ def sphere_tracing(
     )
 
 
+def compute_shadows(
+    signed_distance_function, 
+    surface_positions, 
+    surface_normals,
+    light_directions, 
+    num_iterations, 
+    convergence_threshold,
+    foreground_masks=None,
+    bounding_radius=None,
+):
+    surface_positions, converged = sphere_tracing(
+        signed_distance_function=signed_distance_function, 
+        ray_positions=surface_positions + surface_normals * 1e-3, 
+        ray_directions=light_directions, 
+        num_iterations=num_iterations, 
+        convergence_threshold=convergence_threshold,
+        foreground_masks=foreground_masks,
+        bounding_radius=bounding_radius,
+    )
+    return foreground_masks & converged
+
+
 def compute_normal(
     signed_distance_function, 
     surface_positions, 
-    foreground_masks=None,
     finite_difference_epsilon=None,
 ):
     if finite_difference_epsilon:
         finite_difference_epsilon_x = surface_positions.new_tensor([finite_difference_epsilon, 0.0, 0.0])
         finite_difference_epsilon_y = surface_positions.new_tensor([0.0, finite_difference_epsilon, 0.0])
         finite_difference_epsilon_z = surface_positions.new_tensor([0.0, 0.0, finite_difference_epsilon])
-        normals_x = signed_distance_function(surface_positions + finite_difference_epsilon_x) - signed_distance_function(surface_positions - finite_difference_epsilon_x)
-        normals_y = signed_distance_function(surface_positions + finite_difference_epsilon_y) - signed_distance_function(surface_positions - finite_difference_epsilon_y)
-        normals_z = signed_distance_function(surface_positions + finite_difference_epsilon_z) - signed_distance_function(surface_positions - finite_difference_epsilon_z)
-        normals = torch.cat((normals_x, normals_y, normals_z), dim=-1)
+        surface_normals_x = signed_distance_function(surface_positions + finite_difference_epsilon_x) - signed_distance_function(surface_positions - finite_difference_epsilon_x)
+        surface_normals_y = signed_distance_function(surface_positions + finite_difference_epsilon_y) - signed_distance_function(surface_positions - finite_difference_epsilon_y)
+        surface_normals_z = signed_distance_function(surface_positions + finite_difference_epsilon_z) - signed_distance_function(surface_positions - finite_difference_epsilon_z)
+        surface_normals = torch.cat((surface_normals_x, surface_normals_y, surface_normals_z), dim=-1)
 
     else:
         create_graph = surface_positions.requires_grad
         surface_positions.requires_grad_(True)
         with torch.enable_grad():
             signed_distances = signed_distance_function(surface_positions)
-            normals, = torch.autograd.grad(
+            surface_normals, = torch.autograd.grad(
                 outputs=signed_distances, 
                 inputs=surface_positions, 
                 grad_outputs=torch.ones_like(signed_distances),
                 create_graph=create_graph,
             )
 
-    normals = torch.where(foreground_masks, normals, torch.zeros_like(normals))
-    normals = nn.functional.normalize(normals, dim=-1)
-    return normals
+    surface_normals = nn.functional.normalize(surface_normals, dim=-1)
+    return surface_normals
 
 
 def phong_shading(

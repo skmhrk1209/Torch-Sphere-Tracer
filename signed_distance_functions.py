@@ -90,7 +90,7 @@ def cylinder(r, h):
     return sdf
 
 
-def cone(c, h):
+def cone(r, h):
     """ GLSL
     float sdCone( in vec3 p, in vec2 c, float h )
     {
@@ -109,9 +109,10 @@ def cone(c, h):
     }
     """
     def sdf(p):
+        # cx, cy = unconcat(c)
+        # q = h * concat(cx / cy, -one(cx))
+        q = concat(r, -h)
         px, py, pz = unconcat(p)
-        cx, cy = unconcat(c)
-        q = h * concat(cx / cy, -one(cx))
         qx, qy = unconcat(q)
         w = concat(length(concat(px, pz)), py)
         wx, wy = unconcat(w)
@@ -310,6 +311,20 @@ def pyramid(h):
         b = m * (qx + 0.5 * t) ** 2 + (qy - m * t) ** 2
         d = torch.where(minimum(qy, -qx * m - qy * 0.5) > 0.0, zero(a), minimum(a, b))
         d = sqrt((d + qz ** 2) / m) * sign(maximum(qz, -py))
+        return d
+    return sdf
+
+
+def plane(n, h):
+    """ GLSL
+    float sdPlane( vec3 p, vec3 n, float h )
+    {
+        // n must be normalized
+        return dot(p,n) + h;
+    }
+    """
+    def sdf(p):
+        d = dot(p, n) + h
         return d
     return sdf
 
