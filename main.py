@@ -5,8 +5,8 @@ import numpy as np
 import argparse
 
 import sphere_tracing.renderers as renderers
-import sphere_tracing.signed_distance_functions as sdf
-import sphere_tracing.constructive_solid_geometry as csg
+import sphere_tracing.sdf as sdf
+import sphere_tracing.csg as csg
 
 
 def main(args):
