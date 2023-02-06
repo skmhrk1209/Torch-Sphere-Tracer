@@ -4,9 +4,9 @@ import torchvision
 import numpy as np
 import argparse
 
-import sphere_tracing.renderers as renderers
-import sphere_tracing.sdf as sdf
-import sphere_tracing.csg as csg
+import renderers
+import sdf
+import csg
 
 
 def main(args):
